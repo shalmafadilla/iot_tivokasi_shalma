@@ -1,4 +1,4 @@
 [wokwi]
 version = 1
 firmware = '.pio\build\esp32doit-devkit-v1\firmware.bin'
-elf = 'D:\Users\Documents\PlatformIO\Projects\folder wokwi_internet\wokwi_internet/.pio\build\esp32doit-devkit-v1\firmware.elf'
+elf = 'D:\Users\Documents\kuliah 2023\SEMESTER 4\IoT\project tugas\minggu 5\wokwi_internet\.pio\build\esp32doit-devkit-v1\firmware.elf'
