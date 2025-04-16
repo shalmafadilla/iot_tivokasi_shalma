@@ -1,32 +1,94 @@
-#include <Arduino.h> // Wajib untuk PlatformIO + ESP32
+#include <Arduino.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include "DHT.h"
 
-// Deklarasi pin LED
-int lampu = 25;
-int lampu2 = 26;
+#define DHTPIN 13
+#define DHTTYPE DHT22
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// Ganti dengan kredensial WiFi Anda
+const char *ssid = "realme12";
+const char *password = "mbohlali";
+
+unsigned long previousMillis = 0;
+const long interval = 5000; // Interval 5 detik (5000 ms)
 
 void setup()
 {
-  Serial.begin(115200); // Inisialisasi komunikasi Serial
-  Serial.println("ESP32 Blinking LED");
+  Serial.begin(115200);
 
-  // Atur pin sebagai OUTPUT
-  pinMode(lampu, OUTPUT);
-  pinMode(lampu2, OUTPUT);
+  // Hubungkan ke WiFi
+  WiFi.begin(ssid, password);
+  Serial.print("Menghubungkan ke WiFi");
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" Terhubung!");
+
+  dht.begin();
+
+  // Tunggu sebentar agar koneksi stabil
+  delay(1000);
 }
 
 void loop()
 {
-  // Nyalakan kedua LED
-  digitalWrite(lampu, LOW);
-  digitalWrite(lampu2, HIGH);
-  Serial.println("LED ON");
+  unsigned long currentMillis = millis();
 
-  delay(1000); // Tunggu 1 detik
+  // Lakukan POST setiap interval yang telah ditentukan
+  if (currentMillis - previousMillis >= interval)
+  {
+    previousMillis = currentMillis;
 
-  // Matikan kedua LED
-  digitalWrite(lampu, HIGH);
-  digitalWrite(lampu2, LOW);
-  Serial.println("LED OFF");
+    float h = round(dht.readHumidity());
+    // Read temperature as Celsius (the default)
+    float t = round(dht.readTemperature());
 
-  delay(1000); // Tunggu 1 detik sebelum mengulang
+    // Check if any reads failed and exit early (to try again).
+    if (isnan(h) || isnan(t))
+    {
+      Serial.println(F("Failed to read from DHT sensor!"));
+      return;
+    }
+
+    // Compute heat index in Celsius (isFahreheit = false)
+    float hic = dht.computeHeatIndex(t, h, false);
+
+    // Inisialisasi HTTPClient
+    HTTPClient http;
+    String url = "http://c29f-182-4-133-229.ngrok-free.app/api/posts"; // Ganti dengan URL ngrok yang benar
+
+    http.begin(url); // Menggunakan HTTP, bukan HTTPS
+    http.addHeader("Content-Type", "application/json");
+
+    String payload = "{\"nama_sensor\":\"Sensor GD\", \"nilai1\":" + String(h) + ", \"nilai2\":" + String(t) + "}";
+
+    Serial.println(payload); // Untuk melihat apakah payload sudah terbentuk dengan benar
+
+    // Kirim POST request
+    int httpResponseCode = http.POST(payload);
+
+    // Tampilkan kode respons HTTP
+    Serial.print("Kode respons HTTP: ");
+    Serial.println(httpResponseCode);
+
+    // Tampilkan respons dari server jika request berhasil
+    if (httpResponseCode == 200 || httpResponseCode == 201)
+    {
+      String response = http.getString();
+      Serial.println("Respons dari server:");
+      Serial.println(response);
+    }
+    else
+    {
+      Serial.println("Gagal mengirim data");
+    }
+
+    // Tutup koneksi HTTP
+    http.end();
+  }
 }
